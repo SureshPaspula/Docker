@@ -1,0 +1,42 @@
+FROM ubuntu:16.04
+LABEL MAINTAINER="suresh.paspula3@gmail.com"
+
+# skip "apt-get install" interactive prompts during build
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Install system
+RUN \
+# update system & install essential packages
+  apt-get update && \
+  apt-get -y upgrade && \
+  apt-get install -y ping curl git pip python vim openssh-server && \
+  mkdir /var/run/sshd && \
+# NGINX
+  apt-get install -y nginx && \
+# PHP 7.0
+  apt-get install -y php7.0-fpm php7.0-cli php7.0-intl php7.0-xml php7.0-mysql php7.0-zip php7.0-gd php7.0-tidy php7.0-json php7.0-sqlite3 php7.0-recode php7.0-imap php7.0-curl php-apcu php-xdebug && \
+  echo "<?php phpinfo(); ?>" > /var/www/index.php && \
+RUN useradd -m ubuntu && \
+    echo "ubuntu:ubuntu" | chpasswd && \
+    cd /etc/sudoers.d && touch nopasswdsudo && echo "test ALL=(ALL) ALL" >> nopasswdsudo && \
+    usermod -s /bin/bash ubuntu && \
+    echo "www-data:www-data" | chpasswd && \
+    sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd && \
+    NOTVISIBLE "in users profile" && \
+    echo "export VISIBLE=now" >> /etc/profile
+
+# Opening SSH port 22
+
+EXPOSE 22
+
+USER ubuntu
+RUN ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
+RUN cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+USER www-data
+RUN ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
+RUN cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+CMD ["/usr/sbin/sshd", "-D"]
+
